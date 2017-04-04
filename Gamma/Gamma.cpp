@@ -49,11 +49,13 @@ public:
 	void init(int point_num);
 	deque<int> mutate(deque<int> order, int number);
 	void evaluate(vector<poi> state);
+	void check_path();
 };
 
 // Function Prototypes
 void welcome();
-void print(vector<policy> population, vector<poi> state);
+void print(vector<policy> population, vector<poi> state, vector<double> history);
+double find_best_for_it(vector<policy> population, vector<poi> state);
 vector<poi> create_pois(int point_num);
 vector<policy> create_pop(int pop_size, int point_num);
 vector<policy> replicate(vector<policy> population);
@@ -70,6 +72,7 @@ int main()
 	int point_num = 10;		// Number of points of interest to visit
 	int generations = 1000;	// Number of Generations
 	int pop_size = 10;		// Half of total poulation size after replication
+	vector<double> history;
 
 	vector<poi> state;					// Stores each point of interest
 	state = create_pois(point_num);		// Randomly create points of interest
@@ -82,7 +85,7 @@ int main()
 		population = replicate(population);			// Perform replication and mutation
 		assert(pop_size * 2 == population.size());	// Check for proper poulation size
 
-		for (int j = 0; j < pop_size * 2; j++)
+		for (int j = 0; j < pop_size * 2; j++)		// MR_3
 		{
 			population.at(j).evaluate(state);		// Evaluate fitness of policies
 		}
@@ -90,9 +93,11 @@ int main()
 		population = bin_turney(population);		// Run binary turnament to downselect
 		assert(pop_size == population.size());		// Check for proper poulation size
 
+		history.push_back(find_best_for_it(population, state));
+
 	}
 
-	print(population, state);
+	print(population, state, history);
 
     return 0;
 }
@@ -143,7 +148,7 @@ vector<policy> create_pop(int pop_size, int point_num)
 }
 
 //===========================================================================					replicate
-vector<policy> replicate(vector<policy> population)
+vector<policy> replicate(vector<policy> population)		// MR_5
 {
 	vector<policy> n_population;
 	n_population = population;
@@ -164,7 +169,7 @@ vector<policy> replicate(vector<policy> population)
 }
 
 //===========================================================================					bin_turney
-vector<policy> bin_turney(vector<policy> population)
+vector<policy> bin_turney(vector<policy> population)		// MR_4
 {
 	int end = population.size() / 2;
 	for (int i = 0; i < end; i++)
@@ -195,11 +200,11 @@ vector<policy> bin_turney(vector<policy> population)
 
 			if (fit_1 > fit_2)
 			{
-				population.erase(population.begin() + choice_2);
+				population.erase(population.begin() + choice_1);
 			}
 			else if (fit_1 < fit_2)
 			{
-				population.erase(population.begin() + choice_1);
+				population.erase(population.begin() + choice_2);
 			}
 			else
 			{
@@ -214,8 +219,26 @@ vector<policy> bin_turney(vector<policy> population)
 	return population;
 }
 
+//===========================================================================					find_best_for_it
+double find_best_for_it(vector<policy> population, vector<poi> state)
+{
+	// Find best route
+	int end = population.size();
+	double min_fit;
+	min_fit = population.at(0).fitness;
+	for (int i = 1; i < end; i++)
+	{
+		if (population.at(i).fitness < min_fit)
+		{
+			min_fit = population.at(i).fitness;
+		}
+	}
+
+	return min_fit;
+}
+
 //===========================================================================					print
-void print(vector<policy> population, vector<poi> state)
+void print(vector<policy> population, vector<poi> state, vector<double> history)		// HR_1 & HR_2 & HR_3 & HR_4
 {
 	// Clear Console Screen
 	system("CLS");
@@ -266,6 +289,20 @@ void print(vector<policy> population, vector<poi> state)
 	//Close output file
 	output_file.close();
 
+
+
+	// Create output file
+	output_file.open("Salesman_Learning_History.txt");
+
+	end = history.size();
+	for (int i = 0; i < end; i++)
+	{
+		output_file << history[i] << endl;
+	}
+
+	//Close output file
+	output_file.close();
+
 	// Wait for
 	Sleep(750);
 
@@ -284,7 +321,7 @@ void poi::init(double max, double min)
 }
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++					policy::init
-void policy::init(int point_num)
+void policy::init(int point_num)		// MR_1
 {
 	deque<int> ordered_poi;
 	for (int i = 0; i < point_num; i++)
@@ -295,7 +332,7 @@ void policy::init(int point_num)
 	path = mutate(ordered_poi, point_num/2);
 }
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++					policy::mutate
-deque<int> policy::mutate(deque<int> order, int number)
+deque<int> policy::mutate(deque<int> order, int number)		// LR_4
 {
 	for (int i = 0; i < number; i++)
 	{
@@ -318,7 +355,7 @@ deque<int> policy::mutate(deque<int> order, int number)
 		{
 			i--;
 		}
-		assert(order.at(0) == 0);
+		assert(order.at(0) == 0);	//LR_5
 	}
 	return order;
 }
@@ -332,12 +369,28 @@ void policy::evaluate(vector<poi> state)
 	double del_x;
 	double del_y;
 	double dist;
-	for (int i = 1; i < end; i++)
+	for (int i = 1; i < end; i++)			// LR_7 & LR_8 Using Pythagorean Theorem
 	{
 		del_x = state.at(path.at(i)).x - state.at(path.at(i - 1)).x;
 		del_y = state.at(path.at(i)).y - state.at(path.at(i - 1)).y;
 		dist = del_x*del_x + del_y*del_y;
-		dist = sqrt(dist);
-		fitness = fitness + dist;
+		dist = sqrt(dist);			// LR_7 Using Pythagorean Theorem
+		fitness = fitness + dist;	// LR_8 & MR_2
+	}
+}
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++					policy::check_path
+void policy::check_path()		// LR_6
+{
+	int end = path.size();
+	for (int i = 0; i < end-1; i++)
+	{
+		for (int j = 0; j < end-1; i++)
+		{
+			if (j != i)
+			{
+				assert(path[i] != path[j]);
+			}
+		}
 	}
 }
